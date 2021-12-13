@@ -1,0 +1,46 @@
+version: '3.9'
+
+networks:
+  apache_docker_net:
+
+services:
+  apache:
+    container_name: '${APP_NAME}-apache'
+    build:
+      context: ./apache
+    ports:
+      - '${APP_PORT}:80'
+    working_dir: /var/www
+    volumes:
+      - ./../build:/var/www
+      - ./apache/sites-enabled:/etc/apache2/sites-enabled
+      - ./apache/php/php.ini:/usr/local/etc/php/conf.d/extra-php-config.ini
+    depends_on:
+      db_server:
+        condition: service_healthy
+    networks:
+      - apache_docker_net
+
+  db_server:
+    image: mysql:8.0
+    container_name: '${APP_NAME}-database'
+    restart: always
+    ports:
+      - '${DB_PORT}:3306'
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./docker/db/my.cnf:/etc/mysql/conf.d/my.cnf
+    environment:
+      MYSQL_ROOT_PASSWORD: '${MYSQL_ROOT_PASS}'
+      MYSQL_USER: '${MYSQL_USER}'
+      MYSQL_PASSWORD: '${MYSQL_PASS}'
+      MYSQL_DATABASE: '${MYSQL_DB}'
+    healthcheck:
+      test: mysqladmin ping -h 127.0.0.1 -u root --password=$$MYSQL_ROOT_PASSWORD
+      interval: 5s
+      retries: 5
+    networks:
+      - apache_docker_net
+volumes:
+  db_data:
+
